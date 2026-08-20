@@ -177,13 +177,13 @@ func (e *Engine) applyReinstatement(ctx context.Context, tx store.DBTX, c *domai
 		return err
 	}
 	r := &domain.Reinstatement{
-		ContractID:         c.ID,
-		LossID:            l.ID,
-		Seq:               seq + 1,
-		RestoredAmount:    d.RestoredAmount,
-		Premium:           d.Premium,
+		ContractID:          c.ID,
+		LossID:              l.ID,
+		Seq:                 seq + 1,
+		RestoredAmount:      d.RestoredAmount,
+		Premium:             d.Premium,
 		ReinstatementFactor: d.Factor,
-		OriginalPremium:   d.OriginalPremium,
+		OriginalPremium:     d.OriginalPremium,
 	}
 	if err := e.reins.Create(ctx, tx, r); err != nil {
 		return err
@@ -206,6 +206,7 @@ func (e *Engine) AllocateEvent(ctx context.Context, contractID int64, eventTag s
 		if c.Type != domain.CatXL {
 			return domain.Newf(domain.ErrInvalidArgument, "contract %s is not cat_xl", c.Code)
 		}
+		eventTag = domain.CanonicalEventTag(eventTag)
 		if eventTag == "" {
 			return domain.Newf(domain.ErrInvalidArgument, "event_tag required")
 		}

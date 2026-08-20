@@ -28,6 +28,7 @@ func NewCatastropheAccumulator(s *store.Store) *CatastropheAccumulator {
 // marked-allocated event only if the caller checks first; raw accumulation is
 // additive so a single loss must be added exactly once.
 func (a *CatastropheAccumulator) AccumulateFor(ctx context.Context, tx store.DBTX, contractID int64, eventTag string, lossAmount domain.Money) error {
+	eventTag = domain.CanonicalEventTag(eventTag)
 	if eventTag == "" {
 		return domain.Newf(domain.ErrInvalidArgument, "cat_xl accumulation requires a non-empty event_tag")
 	}
@@ -37,6 +38,7 @@ func (a *CatastropheAccumulator) AccumulateFor(ctx context.Context, tx store.DBT
 // AccumulatedFor returns the accumulated loss and whether it was already
 // allocated for a (contract, event_tag) pair.
 func (a *CatastropheAccumulator) AccumulatedFor(ctx context.Context, tx store.DBTX, contractID int64, eventTag string) (domain.Money, bool, error) {
+	eventTag = domain.CanonicalEventTag(eventTag)
 	e, err := a.events.Get(ctx, tx, contractID, eventTag)
 	if err != nil {
 		if domain.Is(err, domain.ErrNotFound) {
@@ -62,7 +64,7 @@ func (a *CatastropheAccumulator) MustNotBeAllocated(ctx context.Context, tx stor
 
 // MarkAllocated flags the event as allocated.
 func (a *CatastropheAccumulator) MarkAllocated(ctx context.Context, tx store.DBTX, contractID int64, eventTag string) error {
-	return a.events.MarkAllocated(ctx, tx, contractID, eventTag)
+	return a.events.MarkAllocated(ctx, tx, contractID, domain.CanonicalEventTag(eventTag))
 }
 
 // Reconcile ensures the accumulated loss matches the sum of paid losses for the
@@ -70,6 +72,7 @@ func (a *CatastropheAccumulator) MarkAllocated(ctx context.Context, tx store.DBT
 // the authoritative accumulated loss back to the catastrophe_events row so the
 // allocation step and MarkAllocated have a row to operate on.
 func (a *CatastropheAccumulator) Reconcile(ctx context.Context, tx store.DBTX, contractID int64, eventTag string) (domain.Money, error) {
+	eventTag = domain.CanonicalEventTag(eventTag)
 	sum, err := a.losses.SumPaidByContractEvent(ctx, tx, contractID, eventTag)
 	if err != nil {
 		return 0, err

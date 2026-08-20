@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // ContractType enumerates the four supported reinsurance contract kinds.
 type ContractType string
@@ -31,12 +34,15 @@ func (t ContractType) IsExcess() bool {
 	return t == PerRiskXL || t == CatXL
 }
 
+// CanonicalEventTag makes equivalent catastrophe labels resolve to one event.
+func CanonicalEventTag(tag string) string { return strings.ToLower(strings.TrimSpace(tag)) }
+
 // ContractStatus is the lifecycle state of a treaty.
 type ContractStatus string
 
 const (
-	ContractInForce  ContractStatus = "in_force"
-	ContractExpired  ContractStatus = "expired"
+	ContractInForce   ContractStatus = "in_force"
+	ContractExpired   ContractStatus = "expired"
 	ContractCancelled ContractStatus = "cancelled"
 )
 
@@ -51,25 +57,25 @@ func (s ContractStatus) Valid() bool {
 
 // Contract is a reinsurance treaty.
 type Contract struct {
-	ID                  int64
-	Code                string
-	Type                ContractType
-	AttachmentPoint     Money // excess types only
-	Limit               Money // excess types only
-	CessionRate         float64 // quota_share
-	RetainedLine        Money    // surplus_share self-retained line
-	TreatyCapacity      int      // surplus_share max ceded lines
-	NumReinstatements   int      // excess types; 0 = no reinstatement
-	ReinstatementFactor float64  // excess types
+	ID                   int64
+	Code                 string
+	Type                 ContractType
+	AttachmentPoint      Money   // excess types only
+	Limit                Money   // excess types only
+	CessionRate          float64 // quota_share
+	RetainedLine         Money   // surplus_share self-retained line
+	TreatyCapacity       int     // surplus_share max ceded lines
+	NumReinstatements    int     // excess types; 0 = no reinstatement
+	ReinstatementFactor  float64 // excess types
 	CedingCommissionRate float64 // proportional (and optional excess)
-	BrokerRate          float64
-	CededPremiumRate    float64 // non-proportional: ceded_premium = original_premium * rate
-	Currency            string
-	StartDate           time.Time
-	EndDate             time.Time
-	Status              ContractStatus
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	BrokerRate           float64
+	CededPremiumRate     float64 // non-proportional: ceded_premium = original_premium * rate
+	Currency             string
+	StartDate            time.Time
+	EndDate              time.Time
+	Status               ContractStatus
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 // Validate checks type-specific field consistency.

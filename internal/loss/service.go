@@ -55,6 +55,9 @@ func (svc *Service) Create(ctx context.Context, l *domain.Loss) (*domain.Loss, e
 		if !validOccurrence(c, pol, l.OccurrenceDate) {
 			return domain.Newf(domain.ErrInvalidArgument, "occurrence date must fall within contract and policy windows")
 		}
+		if c.Type == domain.CatXL {
+			l.EventTag = domain.CanonicalEventTag(l.EventTag)
+		}
 		if c.Type == domain.CatXL && l.EventTag == "" {
 			return domain.Newf(domain.ErrInvalidArgument, "cat_xl losses require a non-empty event_tag")
 		}
