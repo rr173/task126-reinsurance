@@ -61,6 +61,22 @@ func (CatastropheEventStore) Get(ctx context.Context, q DBTX, contractID int64, 
 	return e, nil
 }
 
+// RequireOpen rejects writes into an event once its cumulative recovery has
+// been finalised. A missing row is an event that has not started yet.
+func (s CatastropheEventStore) RequireOpen(ctx context.Context, q DBTX, contractID int64, eventTag string) error {
+	e, err := s.Get(ctx, q, contractID, eventTag)
+	if err != nil {
+		if domain.Is(err, domain.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	if e.Allocated {
+		return domain.Newf(domain.ErrConflict, "cat event %q under contract %d is sealed", eventTag, contractID)
+	}
+	return nil
+}
+
 // ListByContract returns all cat events for a contract.
 func (CatastropheEventStore) ListByContract(ctx context.Context, q DBTX, contractID int64) ([]*domain.CatastropheEvent, error) {
 	rows, err := q.QueryContext(ctx,

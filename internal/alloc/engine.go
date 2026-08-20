@@ -210,7 +210,7 @@ func (e *Engine) AllocateEvent(ctx context.Context, contractID int64, eventTag s
 			return domain.Newf(domain.ErrInvalidArgument, "event_tag required")
 		}
 		// Prevent double recovery of an already-allocated event.
-		if err := e.catAcc.MustNotBeAllocated(ctx, tx, contractID, eventTag); err != nil {
+		if err := e.catAcc.RequireOpen(ctx, tx, contractID, eventTag); err != nil {
 			return err
 		}
 		// The accumulated loss is the authoritative sum of paid losses.

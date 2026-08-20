@@ -47,17 +47,10 @@ func (a *CatastropheAccumulator) AccumulatedFor(ctx context.Context, tx store.DB
 	return e.AccumulatedLoss, e.Allocated, nil
 }
 
-// MustNotBeAllocated returns an error if the event was already allocated,
-// preventing double recovery against the same cat contract+event.
-func (a *CatastropheAccumulator) MustNotBeAllocated(ctx context.Context, tx store.DBTX, contractID int64, eventTag string) error {
-	_, allocated, err := a.AccumulatedFor(ctx, tx, contractID, eventTag)
-	if err != nil {
-		return err
-	}
-	if allocated {
-		return domain.Newf(domain.ErrConflict, "cat event %q under contract %d already allocated", eventTag, contractID)
-	}
-	return nil
+// RequireOpen shares the event-seal invariant between event allocation and
+// loss registration.
+func (a *CatastropheAccumulator) RequireOpen(ctx context.Context, tx store.DBTX, contractID int64, eventTag string) error {
+	return a.events.RequireOpen(ctx, tx, contractID, eventTag)
 }
 
 // MarkAllocated flags the event as allocated.

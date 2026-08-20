@@ -16,6 +16,7 @@ type Service struct {
 	contracts store.ContractStore
 	policies  store.PolicyStore
 	losses    store.LossStore
+	events    store.CatastropheEventStore
 	audit     store.AuditStore
 }
 
@@ -26,6 +27,7 @@ func New(s *store.Store) *Service {
 		contracts: store.NewContractStore(),
 		policies:  store.NewPolicyStore(),
 		losses:    store.NewLossStore(),
+		events:    store.NewCatastropheEventStore(),
 		audit:     store.NewAuditStore(),
 	}
 }
@@ -57,6 +59,11 @@ func (svc *Service) Create(ctx context.Context, l *domain.Loss) (*domain.Loss, e
 		}
 		if c.Type == domain.CatXL && l.EventTag == "" {
 			return domain.Newf(domain.ErrInvalidArgument, "cat_xl losses require a non-empty event_tag")
+		}
+		if c.Type == domain.CatXL {
+			if err := svc.events.RequireOpen(ctx, tx, l.ContractID, l.EventTag); err != nil {
+				return err
+			}
 		}
 		if err := svc.losses.Create(ctx, tx, l); err != nil {
 			return err
