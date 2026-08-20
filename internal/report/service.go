@@ -38,14 +38,14 @@ func New(s *store.Store) *Service {
 
 // ContractSummary aggregates the running totals for one contract.
 type ContractSummary struct {
-	Contract             *domain.Contract
-	PolicyCount          int
-	LossCount            int
-	TotalRecovered       domain.Money
-	ReinstatementsUsed   int
-	LimitRemaining       domain.Money
-	BordereauxCount      int
-	NetBalance           domain.Money // across all settled bordereaux
+	Contract           *domain.Contract
+	PolicyCount        int
+	LossCount          int
+	TotalRecovered     domain.Money
+	ReinstatementsUsed int
+	LimitRemaining     domain.Money
+	BordereauxCount    int
+	NetBalance         domain.Money // across all settled bordereaux
 }
 
 // Contract returns a summary for contractID.
@@ -118,9 +118,9 @@ func (svc *Service) Loss(ctx context.Context, lossID int64) (*LossReport, error)
 			return err
 		}
 		r.Allocations = allocs
-		var rec domain.Money
-		for _, a := range allocs {
-			rec = rec.Add(a.RecoveredAmount)
+		rec, err := svc.allocs.SumRecoveredByLoss(ctx, tx, l.ID)
+		if err != nil {
+			return err
 		}
 		r.NetRetained = l.PaidAmount.Sub(rec)
 		return nil
@@ -162,9 +162,9 @@ func (svc *Service) LossesAll(ctx context.Context) ([]*LossReport, error) {
 			if err != nil {
 				return err
 			}
-			var rec domain.Money
-			for _, a := range allocs {
-				rec = rec.Add(a.RecoveredAmount)
+			rec, err := svc.allocs.SumRecoveredByLoss(ctx, tx, l.ID)
+			if err != nil {
+				return err
 			}
 			out = append(out, &LossReport{Loss: l, Allocations: allocs, NetRetained: l.PaidAmount.Sub(rec)})
 		}

@@ -177,13 +177,13 @@ func (e *Engine) applyReinstatement(ctx context.Context, tx store.DBTX, c *domai
 		return err
 	}
 	r := &domain.Reinstatement{
-		ContractID:         c.ID,
-		LossID:            l.ID,
-		Seq:               seq + 1,
-		RestoredAmount:    d.RestoredAmount,
-		Premium:           d.Premium,
+		ContractID:          c.ID,
+		LossID:              l.ID,
+		Seq:                 seq + 1,
+		RestoredAmount:      d.RestoredAmount,
+		Premium:             d.Premium,
 		ReinstatementFactor: d.Factor,
-		OriginalPremium:   d.OriginalPremium,
+		OriginalPremium:     d.OriginalPremium,
 	}
 	if err := e.reins.Create(ctx, tx, r); err != nil {
 		return err
@@ -262,6 +262,11 @@ func (e *Engine) AllocateEvent(ctx context.Context, contractID int64, eventTag s
 			if err := e.allocs.Create(ctx, tx, alloc); err != nil {
 				return err
 			}
+			// Keep one event-level ledger row for contract totals, while recording
+			// the recovery share of every contributing loss for loss reporting.
+			if err := e.allocs.CreateAttributions(ctx, tx, catAttributions(alloc.ID, losses, acc, layerRecovery)); err != nil {
+				return err
+			}
 			out = append(out, alloc)
 			eventRecovered = layerRecovery
 			// Trigger reinstatement if drained.
@@ -288,6 +293,26 @@ func (e *Engine) AllocateEvent(ctx context.Context, contractID int64, eventTag s
 			fmt.Sprintf(`{"event_tag":"%s","recovered":%d}`, eventTag, int64(eventRecovered)))
 	})
 	return out, err
+}
+
+// catAttributions distributes a cat layer across the losses that formed the
+// event total. Integer minor units are assigned deterministically: the final
+// loss absorbs any rounding remainder, preserving the exact event recovery.
+func catAttributions(allocationID int64, losses []*domain.Loss, total, recovery domain.Money) []store.AllocationAttribution {
+	if total <= 0 || recovery <= 0 || len(losses) == 0 {
+		return nil
+	}
+	out := make([]store.AllocationAttribution, 0, len(losses))
+	remaining := recovery
+	for i, loss := range losses {
+		share := remaining
+		if i < len(losses)-1 {
+			share = domain.Money(int64(recovery) * int64(loss.PaidAmount) / int64(total))
+			remaining = remaining.Sub(share)
+		}
+		out = append(out, store.AllocationAttribution{AllocationID: allocationID, LossID: loss.ID, RecoveredAmount: share})
+	}
+	return out
 }
 
 // AllocationsForLoss returns existing allocations for a loss.

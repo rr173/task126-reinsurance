@@ -10,6 +10,15 @@ import (
 // AllocationStore provides CRUD for recovery layers.
 type AllocationStore struct{}
 
+// AllocationAttribution assigns a share of a single catastrophe allocation to
+// one of the losses that formed its event total.  The parent allocation remains
+// the authoritative contract-level ledger entry and is therefore not copied.
+type AllocationAttribution struct {
+	AllocationID    int64
+	LossID          int64
+	RecoveredAmount domain.Money
+}
+
 // NewAllocationStore returns an AllocationStore.
 func NewAllocationStore() AllocationStore { return AllocationStore{} }
 
@@ -32,6 +41,19 @@ VALUES(?,?,?,?,?,?,?,?,?)`,
 		return err
 	}
 	a.ID = id
+	return nil
+}
+
+// CreateAttributions persists the per-loss shares of an event-level cat layer.
+// It is called in the same transaction as the allocation that it references.
+func (AllocationStore) CreateAttributions(ctx context.Context, q DBTX, attributions []AllocationAttribution) error {
+	for _, attribution := range attributions {
+		if _, err := q.ExecContext(ctx, `
+INSERT INTO allocation_attributions(allocation_id,loss_id,recovered_amount) VALUES(?,?,?)`,
+			attribution.AllocationID, attribution.LossID, int64(attribution.RecoveredAmount)); err != nil {
+			return mapErr(err, "allocation attribution insert")
+		}
+	}
 	return nil
 }
 
@@ -70,6 +92,25 @@ func (AllocationStore) ListByLoss(ctx context.Context, q DBTX, lossID int64) ([]
 	return out, rows.Err()
 }
 
+// SumRecoveredByLoss returns the recovery economically attributable to one
+// loss.  Ordinary layers are stored directly on the loss; cat layers are
+// stored once per event and contribute through allocation_attributions.
+func (AllocationStore) SumRecoveredByLoss(ctx context.Context, q DBTX, lossID int64) (domain.Money, error) {
+	row := q.QueryRowContext(ctx, `
+SELECT
+  COALESCE((SELECT SUM(recovered_amount) FROM allocations WHERE loss_id=? AND kind<>?), 0) +
+  COALESCE((SELECT SUM(aa.recovered_amount)
+            FROM allocation_attributions aa
+            JOIN allocations a ON a.id=aa.allocation_id
+            WHERE aa.loss_id=? AND a.kind=?), 0)`,
+		lossID, string(domain.AllocationCatLayer), lossID, string(domain.AllocationCatLayer))
+	var sum int64
+	if err := row.Scan(&sum); err != nil {
+		return 0, mapErr(err, "allocation sum by loss")
+	}
+	return domain.Money(sum), nil
+}
+
 // SumRecoveredByContract returns total recovered amount for a contract.
 func (AllocationStore) SumRecoveredByContract(ctx context.Context, q DBTX, contractID int64) (domain.Money, error) {
 	row := q.QueryRowContext(ctx,
@@ -98,7 +139,7 @@ func (AllocationStore) SumRecoveredByContractInQuarter(ctx context.Context, q DB
 
 // quarterBounds returns YYYY-MM-DD strings for the inclusive quarter date range.
 func quarterBounds(year, quarter int) (string, string) {
-	q := ((quarter - 1) % 4 + 4) % 4 // normalise 1..4
+	q := ((quarter-1)%4 + 4) % 4 // normalise 1..4
 	startMonth := q*3 + 1
 	endMonth := startMonth + 2
 	start := firstDayOfMonth(year, startMonth)

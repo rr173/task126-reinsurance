@@ -72,6 +72,17 @@ CREATE TABLE IF NOT EXISTS allocations (
 CREATE INDEX IF NOT EXISTS idx_allocations_loss ON allocations(loss_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_contract ON allocations(contract_id);
 
+-- A catastrophe layer is recorded once at event level.  Its recovery is
+-- attributed to each participating loss separately so loss reports do not
+-- incorrectly place the full event recovery on the anchor loss.
+CREATE TABLE IF NOT EXISTS allocation_attributions (
+  allocation_id INTEGER NOT NULL REFERENCES allocations(id),
+  loss_id INTEGER NOT NULL REFERENCES losses(id),
+  recovered_amount INTEGER NOT NULL,
+  PRIMARY KEY(allocation_id, loss_id)
+);
+CREATE INDEX IF NOT EXISTS idx_allocation_attributions_loss ON allocation_attributions(loss_id);
+
 CREATE TABLE IF NOT EXISTS reinstatements (
   id INTEGER PRIMARY KEY,
   contract_id INTEGER NOT NULL REFERENCES contracts(id),
