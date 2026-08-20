@@ -68,8 +68,9 @@ func (e *Engine) AllocateLoss(ctx context.Context, lossID int64) ([]*domain.Allo
 		if err != nil {
 			return err
 		}
-		// Contract must be in force at the occurrence date.
-		if !c.InForceAt(loss.OccurrenceDate) {
+		// Loss creation requires a currently in-force contract; allocation may
+		// happen later, so historical liabilities only need date coverage.
+		if !c.CoversOccurrence(loss.OccurrenceDate) {
 			return domain.Newf(domain.ErrInvalidArgument,
 				"contract %s not in force at occurrence %s", c.Code, loss.OccurrenceDate.Format("2006-01-02"))
 		}

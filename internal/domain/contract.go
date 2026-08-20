@@ -117,18 +117,19 @@ func (c *Contract) Validate() error {
 	return nil
 }
 
-// InForceAt reports whether the contract was in force at t (inclusive of both
-// endpoints) AND not cancelled.
-func (c *Contract) InForceAt(t time.Time) bool {
-	if c.Status == ContractCancelled {
-		return false
-	}
-	if c.Status == ContractExpired {
-		// An explicitly expired contract is no longer in force even within the
-		// date window; the explicit transition overrides the calendar.
-		return false
-	}
+// CoversOccurrence reports whether the treaty's contractual date range covers
+// t. It intentionally ignores the current lifecycle status: a claim that
+// occurred during coverage remains a historical treaty liability after the
+// treaty later expires.
+func (c *Contract) CoversOccurrence(t time.Time) bool {
 	return !t.Before(c.StartDate) && !t.After(c.EndDate)
+}
+
+// InForceAt reports whether the contract is currently in force and covers t.
+// Use CoversOccurrence when processing a loss that was already accepted while
+// the treaty was live.
+func (c *Contract) InForceAt(t time.Time) bool {
+	return c.Status == ContractInForce && c.CoversOccurrence(t)
 }
 
 // SurplusCessionRate computes the per-policy cession rate for a surplus_share

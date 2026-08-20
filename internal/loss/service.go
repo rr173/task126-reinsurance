@@ -93,7 +93,7 @@ func validOccurrence(c *domain.Contract, p *domain.Policy, occ time.Time) bool {
 	if occ.IsZero() {
 		return false
 	}
-	if occ.Before(c.StartDate) || occ.After(c.EndDate) {
+	if !c.CoversOccurrence(occ) {
 		return false
 	}
 	if occ.Before(p.StartDate) || occ.After(p.EndDate) {
