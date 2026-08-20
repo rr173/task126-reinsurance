@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>再保险分保与摊回引擎</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>再保险分保与摊回引擎</h1>
+  <p class="sub">合约 · 保单 · 赔案 · 损失摊回 · 恢复 · 季度账单</p>
+</header>
+<main>
+  <nav class="tabs">
+    <button class="tab active" data-pane="contracts">合约</button>
+    <button class="tab" data-pane="policies">保单</button>
+    <button class="tab" data-pane="losses">赔案与摊回</button>
+    <button class="tab" data-pane="bordereaux">季度账单</button>
+    <button class="tab" data-pane="report">汇总报表</button>
+  </nav>
+
+  <section id="pane-contracts" class="pane active">
+    <h2>登记合约</h2>
+    <form id="form-contract" class="grid">
+      <label>合约号<input name="code" required></label>
+      <label>类型
+        <select name="type">
+          <option value="quota_share">配额分保 quota_share</option>
+          <option value="surplus_share">溢额分保 surplus_share</option>
+          <option value="per_risk_xl">险位超赔 per_risk_xl</option>
+          <option value="cat_xl">巨灾超赔 cat_xl</option>
+        </select>
+      </label>
+      <label>自留额(元)<input name="attachment_point" type="number" value="0"></label>
+      <label>责任限额(元)<input name="limit" type="number" value="0"></label>
+      <label>分出比例(0-1)<input name="cession_rate" type="number" step="0.01" value="0.5"></label>
+      <label>自留线额(元)<input name="retained_line" type="number" value="0"></label>
+      <label>最大分出线数<input name="treaty_capacity" type="number" value="0"></label>
+      <label>恢复次数<input name="num_reinstatements" type="number" value="0"></label>
+      <label>恢复保费因子<input name="reinstatement_factor" type="number" step="0.01" value="1"></label>
+      <label>分保佣金率<input name="ceding_commission_rate" type="number" step="0.01" value="0.1"></label>
+      <label>经纪人佣金率<input name="broker_rate" type="number" step="0.01" value="0"></label>
+      <label>分出保费率(非比例)<input name="ceded_premium_rate" type="number" step="0.01" value="1"></label>
+      <label>起始日<input name="start_date" type="date" required></label>
+      <label>终止日<input name="end_date" type="date" required></label>
+      <button type="submit">登记</button>
+    </form>
+    <h3>合约列表</h3>
+    <div id="list-contracts" class="table"></div>
+  </section>
+
+  <section id="pane-policies" class="pane">
+    <h2>登记原保单</h2>
+    <form id="form-policy" class="grid">
+      <label>保单号<input name="policy_no" required></label>
+      <label>归属合约ID<input name="contract_id" type="number" required></label>
+      <label>保额(元)<input name="sum_insured" type="number" required></label>
+      <label>原保费(元)<input name="original_premium" type="number" required></label>
+      <label>地理标签<input name="region_tag" value=""></label>
+      <label>起始日<input name="start_date" type="date" required></label>
+      <label>终止日<input name="end_date" type="date" required></label>
+      <button type="submit">登记</button>
+    </form>
+    <h3>保单列表</h3>
+    <div id="list-policies" class="table"></div>
+  </section>
+
+  <section id="pane-losses" class="pane">
+    <h2>登记赔案并摊回</h2>
+    <form id="form-loss" class="grid">
+      <label>赔案号<input name="claim_no" required></label>
+      <label>归属保单ID<input name="policy_id" type="number" required></label>
+      <label>出险日<input name="occurrence_date" type="date" required></label>
+      <label>赔付金额(元)<input name="paid_amount" type="number" required></label>
+      <label>巨灾事件标签<input name="event_tag" placeholder="留空=非巨灾"></label>
+      <button type="submit">登记</button>
+    </form>
+    <div class="row">
+      <button id="btn-allocate">摊回选中赔案</button>
+      <button id="btn-event" class="alt">摊回巨灾事件</button>
+      <input id="event-tag" placeholder="巨灾事件标签">
+      <input id="event-contract" type="number" placeholder="合约ID">
+    </div>
+    <h3>赔案列表</h3>
+    <div id="list-losses" class="table"></div>
+  </section>
+
+  <section id="pane-bordereaux" class="pane">
+    <h2>季度账单</h2>
+    <form id="form-bord" class="grid inline">
+      <label>合约ID<input name="contract_id" type="number" required></label>
+      <label>年<input name="period_year" type="number" required></label>
+      <label>季度(1-4)<input name="period_quarter" type="number" min="1" max="4" required></label>
+      <button type="submit">创建/获取账单</button>
+    </form>
+    <div class="row">
+      <button id="btn-settle">结算选中账单</button>
+      <button id="btn-reopen" class="alt">重开选中账单</button>
+    </div>
+    <h3>账单列表</h3>
+    <div id="list-bord" class="table"></div>
+  </section>
+
+  <section id="pane-report" class="pane">
+    <h2>汇总报表</h2>
+    <div class="row">
+      <input id="report-contract" type="number" placeholder="合约ID">
+      <button id="btn-report-contract">合约汇总</button>
+      <button id="btn-report-bord">账单汇总</button>
+      <button id="btn-report-losses">赔案摊回报表</button>
+    </div>
+    <pre id="report-out" class="json"></pre>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
